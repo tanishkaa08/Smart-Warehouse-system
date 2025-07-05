@@ -1,1 +1,1 @@
-# Smart-Warehouse-Management-system
+# Smart-Warehouse-system
