@@ -105,6 +105,215 @@
       color: white;
     }
 
+    .cell.moving {
+      background-color: #ffd700;
+      color: white;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.7; }
+      100% { opacity: 1; }
+    }
+
+    .success {
+      color: #28a745 !important;
+    }
+
+    .connection-status {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 15px;
+      border-radius: 5px;
+      font-weight: bold;
+      color: white;
+    }
+
+    .connected {
+      background-color: #28a745;
+    }
+
+    .disconnected {
+      background-color: #dc3545;
+    }
+
+    .connecting {
+      background-color: #ffc107;
+      color: black;
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      transition: opacity 0.3s ease;
+    }
+
+    .loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-content {
+      background: white;
+      padding: 30px 50px;
+      border-radius: 15px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #007bff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .loading-subtext {
+      font-size: 14px;
+      color: #666;
+    }
+
+    /* Cell states */
+    .cell.has-item {
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57, #ff9ff3);
+      background-size: 400% 400%;
+      animation: rainbow 2s ease-in-out infinite;
+      color: white;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      transform: scale(1.05);
+      border: 2px solid #fff;
+    }
+
+    @keyframes rainbow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .cell.empty {
+      background-color: #6c757d;
+      color: white;
+      opacity: 0.6;
+      border: 2px solid #ccc;
+    }
+
+    .cell.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+   
+    .dialog-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .dialog-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .dialog-box {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      transform: scale(0.7);
+      transition: transform 0.3s ease;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    .dialog-overlay.show .dialog-box {
+      transform: scale(1);
+    }
+
+    .dialog-title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 15px;
+    }
+
+    .dialog-message {
+      font-size: 16px;
+      color: #666;
+      margin-bottom: 25px;
+      line-height: 1.5;
+    }
+
+    .dialog-buttons {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+    }
+
+    .dialog-btn {
+      padding: 10px 25px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .dialog-btn.cancel {
+      background: #6c757d;
+      color: white;
+    }
+
+    .dialog-btn.cancel:hover {
+      background: #5a6268;
+    }
+
+    .dialog-btn.confirm {
+      background: #dc3545;
+      color: white;
+    }
+
+    .dialog-btn.confirm:hover {
+      background: #c82333;
+    }
+
     .rack-label {
       text-align: center;
       font-size: 1.2em;
@@ -113,19 +322,89 @@
     }
 
     .clear-btn {
-      margin-top: 0.1em;
-      background-color: #ea6eae;
+      margin-top: 1em;
+      background: linear-gradient(135deg, #ea6eae, #b92e76);
       color: white;
       border: none;
-      padding: 0.7em 1.5em;
-      font-size: 1em;
-      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 25px;
       cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(234, 110, 174, 0.3);
+      font-weight: 600;
     }
 
     .clear-btn:hover {
-      background-color: #b92e76;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(234, 110, 174, 0.4);
     }
+
+    .clear-btn:active {
+      transform: translateY(0);
+    }
+
+    .connection-controls {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    .connect-btn {
+      background: linear-gradient(135deg, #28a745, #20c997);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+      font-weight: 600;
+    }
+
+    .connect-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+    }
+
+    .connect-btn:active {
+      transform: translateY(0);
+    }
+
+    .disconnect-btn {
+      background: linear-gradient(135deg, #dc3545, #c82333);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+      font-weight: 600;
+    }
+
+    .disconnect-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+    }
+
+    .disconnect-btn:active {
+      transform: translateY(0);
+    }
+
+    .connect-btn:disabled,
+    .disconnect-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+
+
     .cell button {
   background-color: #ddd;
   border: none;
@@ -141,30 +420,346 @@
 <body>
   
 
+  <div class="connection-status" id="connectionStatus">Connecting...</div>
+
+ 
+  <div class="loading-overlay hidden" id="loadingOverlay">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Connecting to ESP32...</div>
+      <div class="loading-subtext">Please wait while we establish connection</div>
+    </div>
+  </div>
+
+  <div class="dialog-overlay" id="dialogOverlay">
+    <div class="dialog-box">
+      <div class="dialog-title">Remove Item?</div>
+      <div class="dialog-message" id="dialogMessage">
+        This cell already has an item. Do you want to remove it?
+      </div>
+      <div class="dialog-buttons">
+        <button class="dialog-btn cancel" onclick="hideDialog()">Cancel</button>
+        <button class="dialog-btn confirm" onclick="confirmRemoveItem()">Remove Item</button>
+      </div>
+    </div>
+  </div>
+
   <div class="main-wrapper">
     <div class="container">
         <h1 class="title">Smart Warehouse System</h1>
       <h2>Select a cell to reach the position</h2>
       <div class="rack-wrapper">
         <div class="rack" id="rack">
-          <!-- Cells generated by JavaScript -->
+          
         </div>
       </div>
     
       <p id="status"></p>
       
-      <button class="clear-btn" id="clearBtn">Reset Count</button>
+      <div class="connection-controls">
+        <button class="connect-btn" id="connectBtn">Connect to ESP32</button>
+      </div>
+      
+      <button class="clear-btn" id="clearBtn">Remove All Items</button>
     </div>
     </div>
 
    
 
     <script>
+      const ESP32_IP = '192.168.1.100'; // ← CHANGE THIS to your ESP32's IP
+      const ESP32_PORT = 81;
+      const wsUrl = `ws://${ESP32_IP}:${ESP32_PORT}`;
+      
+      let websocket = null;
+      let isConnected = false;
+      
+      const TEST_MODE = true; // Set to false when ESP32 is ready
+      
       const rack = document.getElementById('rack');
       const statusEl = document.getElementById('status');
       const clearBtn = document.getElementById('clearBtn');
-    
-      const clickCounts = {};
+      const connectBtn = document.getElementById('connectBtn');
+      const connectionStatus = document.getElementById('connectionStatus');
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      const dialogOverlay = document.getElementById('dialogOverlay');
+      const dialogMessage = document.getElementById('dialogMessage');
+      
+      const cellStates = {};
+      
+      let pendingRemoveCell = null;
+      
+      let cellsDisabled = false;
+      
+            function initWebSocket() {
+        loadingOverlay.classList.remove('hidden');
+        
+        if (TEST_MODE) {
+          console.log('🧪 TEST MODE: Simulating connected state');
+          setTimeout(() => {
+            isConnected = true;
+            updateConnectionStatus('connected', 'Connected to ESP32 (TEST)');
+            statusEl.innerText = 'Connected to ESP32! (Test Mode)';
+            statusEl.className = 'success';
+            updateConnectionButton();
+            
+            loadingOverlay.classList.add('hidden');
+            
+            console.log('✅ Test mode: Simulated connection successful');
+          }, 2000);
+          return;
+        }
+        
+        console.log('🔌 Connecting to ESP32 WebSocket...');
+        updateConnectionStatus('connecting', 'Connecting...');
+        
+        websocket = new WebSocket(wsUrl);
+        
+        websocket.onopen = function(event) {
+          console.log('✅ WebSocket connected to ESP32');
+          isConnected = true;
+          updateConnectionStatus('connected', 'Connected to ESP32');
+          statusEl.innerText = 'Connected to ESP32!';
+          statusEl.className = 'success';
+          updateConnectionButton();
+          
+          loadingOverlay.classList.add('hidden');
+        };
+        
+        websocket.onmessage = function(event) {
+          console.log('📨 Received from ESP32:', event.data);
+          handleESP32Message(event.data);
+        };
+        
+        websocket.onclose = function(event) {
+          console.log('❌ WebSocket disconnected');
+          isConnected = false;
+          updateConnectionStatus('disconnected', 'Disconnected');
+          statusEl.innerText = 'Disconnected from ESP32';
+          statusEl.className = 'error';
+          updateConnectionButton();
+          
+          loadingOverlay.classList.remove('hidden');
+        };
+        
+        websocket.onerror = function(error) {
+          console.error('❌ WebSocket error:', error);
+          updateConnectionStatus('disconnected', 'Connection Error');
+          statusEl.innerText = 'Connection error';
+          statusEl.className = 'error';
+          updateConnectionButton();
+          
+          loadingOverlay.classList.remove('hidden');
+        };
+      }
+      
+      function updateConnectionButton() {
+        if (isConnected) {
+          connectBtn.textContent = 'Disconnect from ESP32';
+          connectBtn.className = 'disconnect-btn';
+        } else {
+          connectBtn.textContent = 'Connect to ESP32';
+          connectBtn.className = 'connect-btn';
+        }
+      }
+      
+      function toggleConnection() {
+        if (isConnected) {
+          if (websocket) {
+            websocket.close();
+          }
+          isConnected = false;
+          updateConnectionStatus('disconnected', 'Disconnected');
+          statusEl.innerText = 'Disconnected from ESP32';
+          statusEl.className = 'error';
+          updateConnectionButton();
+          
+          loadingOverlay.classList.add('hidden');
+        } else {
+          initWebSocket();
+        }
+      }
+      
+      function updateConnectionStatus(status, text) {
+        connectionStatus.className = `connection-status ${status}`;
+        connectionStatus.textContent = text;
+      }
+      
+      function handleESP32Message(message) {
+        try {
+          const data = JSON.parse(message);
+          
+          switch(data.type) {
+            case 'position_update':
+              statusEl.innerText = `Bot moved to position ${data.row},${data.col}`;
+              statusEl.className = 'success';
+              clearMovingAnimation();
+              
+              addItemToCell(data.row, data.col);
+              break;
+              
+            case 'movement_start':
+              statusEl.innerText = `Bot starting movement to ${data.row},${data.col}`;
+              statusEl.className = 'success';
+              showMovingAnimation(data.row, data.col);
+              break;
+              
+            case 'error':
+              statusEl.innerText = `ESP32 Error: ${data.message}`;
+              statusEl.className = 'error';
+              clearMovingAnimation();
+              break;
+              
+            default:
+              console.log('Unknown message type:', data.type);
+          }
+        } catch (error) {
+          console.error('Error parsing ESP32 message:', error);
+        }
+      }
+      
+      function showMovingAnimation(row, col) {
+        clearMovingAnimation();
+        const cell = document.getElementById(`cell-${row}-${col}`);
+        if (cell) {
+          cell.classList.add('moving');
+        }
+      }
+      
+      function clearMovingAnimation() {
+        document.querySelectorAll('.cell.moving').forEach(cell => {
+          cell.classList.remove('moving');
+        });
+      }
+      
+      function updateCellAppearance(row, col) {
+        const cell = document.getElementById(`cell-${row}-${col}`);
+        const key = `${row}-${col}`;
+        const hasItem = cellStates[key] === 1;
+        
+        console.log(`🎨 Updating cell [${row},${col}]: hasItem=${hasItem}`);
+        
+        if (cell) {
+          cell.classList.remove('has-item', 'empty', 'disabled');
+          
+          if (hasItem) {
+            cell.classList.add('has-item');
+            console.log(`✅ Cell [${row},${col}] now has rainbow animation`);
+          } else {
+            cell.classList.add('empty');
+            console.log(`⚪ Cell [${row},${col}] is now empty (grey)`);
+          }
+          
+          if (cellsDisabled) {
+            cell.classList.add('disabled');
+          }
+        } else {
+          console.error(`❌ Cell [${row},${col}] not found in DOM`);
+        }
+      }
+      
+      function showDialog(row, col) {
+        pendingRemoveCell = { row, col };
+        dialogMessage.textContent = `Cell [${row},${col}] already has an item. Do you want to remove it?`;
+        dialogOverlay.classList.add('show');
+      }
+      
+      function hideDialog() {
+        dialogOverlay.classList.remove('show');
+        pendingRemoveCell = null;
+      }
+      
+      function confirmRemoveItem() {
+        if (pendingRemoveCell) {
+          const { row, col } = pendingRemoveCell;
+          const key = `${row}-${col}`;
+          
+          cellStates[key] = 0;
+          updateCellAppearance(row, col);
+          statusEl.innerText = `Item removed from cell ${row},${col}`;
+          statusEl.className = 'success';
+          
+          hideDialog();
+        }
+      }
+      
+      function addItemToCell(row, col) {
+        const key = `${row}-${col}`;
+        console.log(`➕ Adding item to cell [${row},${col}] after ESP32 reached it`);
+        cellStates[key] = 1;
+        updateCellAppearance(row, col);
+      }
+      
+      function handleCellClick(row, col) {
+        if (cellsDisabled) {
+          console.log(`🚫 Cell [${row},${col}] is disabled, ignoring click`);
+          return;
+        }
+        
+        const key = `${row}-${col}`;
+        console.log(`🖱️ Cell [${row},${col}] clicked, has item: ${cellStates[key] === 1}`);
+        
+        if (cellStates[key] === 1) {
+          console.log(`❓ Cell [${row},${col}] has item, showing confirmation dialog`);
+          showDialog(row, col);
+        } else {
+          console.log(`📡 Sending position [${row},${col}] to ESP32`);
+          
+          document.querySelectorAll('.cell.active').forEach(c => c.classList.remove('active'));
+          
+          const cell = document.getElementById(`cell-${row}-${col}`);
+          if (cell) {
+            cell.classList.add('active');
+          }
+          
+          if (sendPositionToESP32(row, col)) {
+            showMovingAnimation(row, col);
+          }
+        }
+      }
+      
+      function sendPositionToESP32(row, col) {
+        if (!isConnected) {
+          statusEl.innerText = 'Not connected to ESP32!';
+          statusEl.className = 'error';
+          return false;
+        }
+        
+        if (TEST_MODE) {
+          console.log(`🧪 TEST MODE: Simulating movement to position ${row},${col}`);
+          
+          setTimeout(() => {
+            handleESP32Message(JSON.stringify({
+              type: 'movement_start',
+              row: row,
+              col: col
+            }));
+          }, 500);
+          
+          setTimeout(() => {
+            handleESP32Message(JSON.stringify({
+              type: 'position_update',
+              row: row,
+              col: col
+            }));
+          }, 3000);
+          
+          statusEl.innerText = `Sending position ${row},${col} to ESP32... (Test Mode)`;
+          statusEl.className = 'success';
+          return true;
+        }
+        
+        const message = {
+          type: 'move_to_position',
+          row: parseInt(row),
+          col: parseInt(col)
+        };
+        
+        websocket.send(JSON.stringify(message));
+        statusEl.innerText = `Sending position ${row},${col} to ESP32...`;
+        statusEl.className = 'success';
+        return true;
+      }
     
       for (let r = 1; r <= 4; r++) {
         for (let c = 1; c <= 4; c++) {
@@ -175,95 +770,76 @@
           cell.dataset.col = c;
     
           const key = `${r}-${c}`;
-          clickCounts[key] = 0;
+          cellStates[key] = 0;
     
           const label = document.createElement('div');
           label.textContent = `${r},${c}`;
     
-          const counter = document.createElement('span');
-          counter.id = `count-${key}`;
-          counter.textContent = 'Items: 0';
-    
-          // Tiny + and - buttons
-          const controls = document.createElement('div');
-          controls.style.display = 'flex';
-          controls.style.gap = '3px';
-          controls.style.marginTop = '4px';
-    
-          const plusBtn = document.createElement('button');
-          plusBtn.textContent = '+';
-          plusBtn.style.padding = '2px 6px';
-          plusBtn.style.fontSize = '10px';
-          plusBtn.style.cursor = 'pointer';
-          plusBtn.style.borderRadius = '4px';
-    
-          const minusBtn = document.createElement('button');
-          minusBtn.textContent = '–';
-          minusBtn.style.padding = '2px 6px';
-          minusBtn.style.fontSize = '10px';
-          minusBtn.style.cursor = 'pointer';
-          minusBtn.style.borderRadius = '4px';
-    
-          plusBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // prevent cell click
-            clickCounts[key]++;
-            counter.textContent = `Items: ${clickCounts[key]}`;
-            statusEl.innerText = `Item added to cell ${r},${c}`;
-            statusEl.classList.remove('error');
-          });
-    
-          minusBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // prevent cell click
-            if (clickCounts[key] > 0) {
-              clickCounts[key]--;
-              counter.textContent = `Items: ${clickCounts[key]}`;
-              statusEl.innerText = `Item removed from cell ${r},${c}`;
-              statusEl.classList.remove('error');
-            } else {
-              statusEl.innerText = `No items to remove in cell ${r},${c}`;
-              statusEl.classList.add('error');
-            }
-          });
-    
-          controls.appendChild(plusBtn);
-          controls.appendChild(minusBtn);
-    
           cell.appendChild(label);
-          cell.appendChild(counter);
-          cell.appendChild(controls);
     
-          cell.addEventListener('click', () => {
-            document.querySelectorAll('.cell.active').forEach(c => c.classList.remove('active'));
-            cell.classList.add('active');
+          cell.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleCellClick(r, c);
+          });
     
-            fetch(`/send?row=${r}&col=${c}`)
-              .then(res => res.text())
-              .then(data => {
-                statusEl.innerText = `Sent position ${r},${c} to ESP32!`;
-                statusEl.classList.remove('error');
-              })
-              .catch(err => {
-                statusEl.innerText = 'Failed to send!';
-                statusEl.classList.add('error');
-              });
+          cell.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            handleCellClick(r, c);
           });
     
           rack.appendChild(cell);
+          
+          updateCellAppearance(r, c);
         }
       }
     
       clearBtn.addEventListener('click', () => {
+        cellsDisabled = true;
+        
         for (let r = 1; r <= 4; r++) {
           for (let c = 1; c <= 4; c++) {
             const key = `${r}-${c}`;
-            clickCounts[key] = 0;
-            const counter = document.getElementById(`count-${key}`);
-            if (counter) counter.textContent = 'Items: 0';
+            cellStates[key] = 0;
+            updateCellAppearance(r, c);
           }
         }
     
         document.querySelectorAll('.cell.active').forEach(c => c.classList.remove('active'));
-        statusEl.innerText = '';
+        statusEl.innerText = 'All items removed';
+        statusEl.className = 'success';
+        
+        setTimeout(() => {
+          cellsDisabled = false;
+          for (let r = 1; r <= 4; r++) {
+            for (let c = 1; c <= 4; c++) {
+              updateCellAppearance(r, c);
+            }
+          }
+        }, 2000);
+      });
+      
+      connectBtn.addEventListener('click', toggleConnection);
+
+      document.addEventListener('keydown', function(event) {
+        if (dialogOverlay.classList.contains('show')) {
+          if (event.key === 'Escape') {
+            hideDialog();
+          } else if (event.key === 'Enter') {
+            confirmRemoveItem();
+          }
+        }
+      });
+      
+      dialogOverlay.addEventListener('click', function(event) {
+        if (event.target === dialogOverlay) {
+          hideDialog();
+        }
+      });
+
+      window.addEventListener('load', function() {
+        console.log('🚀 Page loaded, ready for connection...');
+        
+        updateConnectionButton();
       });
     </script>
     
