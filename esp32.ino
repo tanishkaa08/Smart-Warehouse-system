@@ -20,12 +20,11 @@ void setup() {
   
   Serial.println("\n=== ESP32 WebSocket Client ===");
   Serial.println("Initializing...");
+  Serial.println("WiFi not connected. Attempting to connect...");
+  connectToWiFi();
   
   if (wifi_connected) {
     connectToWebSocket();
-  }else{
-    Serial.println("WiFi not connected. Attempting to connect...");
-    connectToWiFi();
   }
 }
 
