@@ -2,6 +2,33 @@
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
 
+//All of the following macros are temporary for now 
+// Motor A - BTS7960
+#define RPWM_L 25
+#define LPWM_L 26
+
+// Motor B - BTS7960
+#define RPWM_R 12
+#define LPWM_R 13
+
+// Stepper - TB6600
+#define STEP_PIN 18
+#define DIR_PIN  19
+const int stepsPerMM = 1600;       // for 1/16 microstepping, 2mm pitch
+const int rackHeightMM = 75;
+
+// IR sensors
+#define leftIR  34
+#define rightIR 35
+#define IR_Side  14 //Connect only to that pin in ESP 32 which support interrupts 
+
+volatile int colCounter = 0; //Counter to count the columns 
+volatile int rowCounter = 0 ; //Counter to count the rows 
+volatile bool colDetected = false;
+
+volatile int prevRow = 0;
+volatile int prevCol = 0;
+
 const char* ssid = "YOUR_WIFI_SSID";
 const char* password = "YOUR_WIFI_PASSWORD";
 
@@ -26,6 +53,23 @@ void setup() {
   if (wifi_connected) {
     connectToWebSocket();
   }
+
+  //******* PIN CONFIGURATIONS *************
+  // Setup BTS7960
+  pinMode(RPWM_L, OUTPUT); pinMode(LPWM_L, OUTPUT);
+  pinMode(RPWM_R, OUTPUT); pinMode(LPWM_R, OUTPUT);
+
+  // Setup Stepper
+  pinMode(STEP_PIN, OUTPUT); pinMode(DIR_PIN, OUTPUT);
+
+    // IR sensors
+  pinMode(IR_LEFT, INPUT);
+  pinMode(IR_RIGHT, INPUT);
+  pinMode(IR_Side, INPUT);
+
+  // Attach interrupt: FALLING = High to Low = detecting black
+  attachInterrupt(digitalPinToInterrupt(sideIR), sideIR_isr, FALLING);
+
 }
 
 void loop() {
@@ -166,12 +210,181 @@ void sendBooleanResponse(bool result) {
   Serial.printf("Sent response: %s\n", jsonString.c_str());
 }
 
-bool reach_row_col(int row, int col) {
+bool reachRowCol(int row, int col) {
   Serial.printf("Processing coordinates: row=%d, col=%d\n", row, col);
-  
-  bool result = (row + col) % 2 == 0; //TODO: @Madhav add logic here
-  
+  Serial.printf("Reaching column: %d" , col);
+
+  bool columnReached = reachCol(col);
+  bool rowReached = reachRow(row);
+
+  if(columnReached && rowReached){
+
+    //********************* CHOD BHANGRA ******************************//
+    Serial.println("Reached desired rack position !!!");
+    Serial.println("Enter next rack positoin from the dashboard"):
+
+  }
+
   delay(100);
   
   return result;
 } 
+
+
+/**************************************************************************** 
+|                                                                           |
+|************************* HELPER FUNCTIONS ********************************|
+|                                                                           |
+*****************************************************************************
+*/
+
+bool reachCol(int col){
+
+  int colDiff = col - prevCol; 
+  bool flag =false;
+
+  if(colDiff > 0){
+    while(colCounter != col){
+      move_forward();
+    }
+    stop();
+    colCounter =0;
+    prevCol = col; 
+    flag = true;
+  }
+  else{
+    while(colCounter != col){
+      move_backward();
+    }
+    stop();
+    colCounter= 0;
+    prevCol = col; 
+    flag =true;
+  }
+  Serial.printf("Reached entered column value");
+  return flag ;
+
+}
+
+bool reachRow(int row){
+  int rowDiff = row - prevRow;
+  bool flag = false; 
+  int distanceMM = rowDiff * rackHeightMM;
+  int totalSteps = abs(distanceMM) * stepsPerMM;
+
+  bool direction = (rowDiff > 0); // true = up, false = down
+  stepMotor(totalSteps, direction);
+  flag = true;
+  prevRow = row;
+  return flag ;
+  
+}
+
+void stepMotor(int steps, bool dir) {
+  digitalWrite(DIR_PIN, dir);
+  for (int i = 0; i < steps; i++) {
+    digitalWrite(STEP_PIN, HIGH);
+    delayMicroseconds(500); // Control speed
+    digitalWrite(STEP_PIN, LOW);
+    delayMicroseconds(500);
+  }
+}
+
+void IRAM_ATTR sideIR_isr() {
+  // Set flag to indicate a black spot was detected
+  if (!spotDetected) {  // Edge detection to avoid multiple triggers
+    colCounter++;
+    spotDetected = true;
+  }
+}
+
+// Move forward with line following
+void move_forward() {
+  int leftValue = digitalRead(leftIR);
+  int rightValue = digitalRead(rightIR);
+
+  if (leftValue == LOW && rightValue == LOW) {
+    // On track
+    forward();
+  }
+  else if (leftValue == LOW && rightValue == HIGH) {
+    // Drifted right, turn left
+    turn_left();
+  }
+  else if (leftValue == HIGH && rightValue == LOW) {
+    // Drifted left, turn right
+    turn_right();
+  }
+  else {
+    stop();
+  }
+}
+
+// Move backward with line following
+void move_backward() {
+  int leftValue = digitalRead(leftIR);
+  int rightValue = digitalRead(rightIR);
+
+  if (leftValue == LOW && rightValue == LOW) {
+    backward();
+  }
+  else if (leftValue == LOW && rightValue == HIGH) {
+    turn_left_backward();
+  }
+  else if (leftValue == HIGH && rightValue == LOW) {
+    turn_right_backward();
+  }
+  else {
+    stop();
+  }
+}
+
+// Motor control functions
+void forward() {
+  analogWrite(RPWM_L, 255);
+  analogWrite(LPWM_L, 0);
+  analogWrite(RPWM_R, 255);
+  analogWrite(LPWM_R, 0);
+}
+
+void backward() {
+  analogWrite(RPWM_L, 0);
+  analogWrite(LPWM_L, 255);
+  analogWrite(RPWM_R, 0);
+  analogWrite(LPWM_R, 255);
+}
+
+void turn_left() {
+  analogWrite(RPWM_L, 200);
+  analogWrite(LPWM_L, 0);
+  analogWrite(RPWM_R, 100);
+  analogWrite(LPWM_R, 0);
+}
+
+void turn_right() {
+  analogWrite(RPWM_L, 100);
+  analogWrite(LPWM_L, 0);
+  analogWrite(RPWM_R, 200);
+  analogWrite(LPWM_R, 0);
+}
+
+void turn_left_backward() {
+  analogWrite(RPWM_L, 0);
+  analogWrite(LPWM_L, 200);
+  analogWrite(RPWM_R, 0);
+  analogWrite(LPWM_R, 100);
+}
+
+void turn_right_backward() {
+  analogWrite(RPWM_L, 0);
+  analogWrite(LPWM_L, 100);
+  analogWrite(RPWM_R, 0);
+  analogWrite(LPWM_R, 200);
+}
+
+void stop() {
+  analogWrite(RPWM_L, 0);
+  analogWrite(LPWM_L, 0);
+  analogWrite(RPWM_R, 0);
+  analogWrite(LPWM_R, 0);
+}
