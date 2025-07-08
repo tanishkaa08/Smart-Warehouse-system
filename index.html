@@ -76,7 +76,7 @@
       grid-template-rows: repeat(4, 60px);
       gap: 10px;
       justify-content: center;
-  align-content: center;
+      align-content: center;
     }
 
     .cell {
@@ -144,7 +144,6 @@
       color: black;
     }
 
-    /* Loading overlay */
     .loading-overlay {
       position: fixed;
       top: 0;
@@ -198,7 +197,6 @@
       color: #666;
     }
 
-    /* Cell states */
     .cell.has-item {
       background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57, #ff9ff3);
       background-size: 400% 400%;
@@ -403,24 +401,21 @@
       transform: none !important;
     }
 
-
-
     .cell button {
-  background-color: #ddd;
-  border: none;
-  font-weight: bold;
-}
+      background-color: #ddd;
+      border: none;
+      font-weight: bold;
+    } 
 
-.cell button:hover {
-  background-color: #ccc;
-}
-
+    .cell button:hover {
+      background-color: #ccc;
+    }
   </style>
 </head>
 <body>
   
 
-  <div class="connection-status" id="connectionStatus">Connecting...</div>
+<div class="connection-status" id="connectionStatus">Connecting...</div>
 
  
   <div class="loading-overlay hidden" id="loadingOverlay">
@@ -457,7 +452,7 @@
       <p id="status"></p>
       
       <div class="connection-controls">
-        <button class="connect-btn" id="connectBtn">Connect to ESP32</button>
+        <button class="connect-btn" id="connectBtn">Connect to Server</button>
       </div>
       
       <button class="clear-btn" id="clearBtn">Remove All Items</button>
@@ -467,14 +462,13 @@
    
 
     <script>
-      const ESP32_IP = '192.168.1.100'; // ← CHANGE THIS to your ESP32's IP
-      const ESP32_PORT = 81;
-      const wsUrl = `ws://${ESP32_IP}:${ESP32_PORT}`;
+      const RELAY_SERVER_IP = 'your_laptop_ip'; // Change to your laptop's IP
+      const RELAY_SERVER_PORT = 8080;
+      const wsUrl = `ws://${RELAY_SERVER_IP}:${RELAY_SERVER_PORT}`;
       
       let websocket = null;
       let isConnected = false;
-      
-      const TEST_MODE = true; // Set to false when ESP32 is ready
+
       
       const rack = document.getElementById('rack');
       const statusEl = document.getElementById('status');
@@ -494,32 +488,16 @@
             function initWebSocket() {
         loadingOverlay.classList.remove('hidden');
         
-        if (TEST_MODE) {
-          console.log('🧪 TEST MODE: Simulating connected state');
-          setTimeout(() => {
-            isConnected = true;
-            updateConnectionStatus('connected', 'Connected to ESP32 (TEST)');
-            statusEl.innerText = 'Connected to ESP32! (Test Mode)';
-            statusEl.className = 'success';
-            updateConnectionButton();
-            
-            loadingOverlay.classList.add('hidden');
-            
-            console.log('✅ Test mode: Simulated connection successful');
-          }, 2000);
-          return;
-        }
-        
-        console.log('🔌 Connecting to ESP32 WebSocket...');
+                  console.log('Connecting to relay server...');
         updateConnectionStatus('connecting', 'Connecting...');
         
         websocket = new WebSocket(wsUrl);
         
         websocket.onopen = function(event) {
-          console.log('✅ WebSocket connected to ESP32');
+          console.log('WebSocket connected to relay server');
           isConnected = true;
-          updateConnectionStatus('connected', 'Connected to ESP32');
-          statusEl.innerText = 'Connected to ESP32!';
+          updateConnectionStatus('connected', 'Connected to server');
+          statusEl.innerText = 'Connected to relay server - waiting for ESP32...';
           statusEl.className = 'success';
           updateConnectionButton();
           
@@ -527,15 +505,15 @@
         };
         
         websocket.onmessage = function(event) {
-          console.log('📨 Received from ESP32:', event.data);
-          handleESP32Message(event.data);
+          console.log('Received from server:', event.data);
+          handleServerMessage(event.data);
         };
         
         websocket.onclose = function(event) {
-          console.log('❌ WebSocket disconnected');
+          console.log('WebSocket disconnected');
           isConnected = false;
           updateConnectionStatus('disconnected', 'Disconnected');
-          statusEl.innerText = 'Disconnected from ESP32';
+          statusEl.innerText = 'Disconnected from server';
           statusEl.className = 'error';
           updateConnectionButton();
           
@@ -543,7 +521,7 @@
         };
         
         websocket.onerror = function(error) {
-          console.error('❌ WebSocket error:', error);
+          console.error('WebSocket error:', error);
           updateConnectionStatus('disconnected', 'Connection Error');
           statusEl.innerText = 'Connection error';
           statusEl.className = 'error';
@@ -555,10 +533,10 @@
       
       function updateConnectionButton() {
         if (isConnected) {
-          connectBtn.textContent = 'Disconnect from ESP32';
+          connectBtn.textContent = 'Disconnect from Server';
           connectBtn.className = 'disconnect-btn';
         } else {
-          connectBtn.textContent = 'Connect to ESP32';
+          connectBtn.textContent = 'Connect to Server';
           connectBtn.className = 'connect-btn';
         }
       }
@@ -570,7 +548,7 @@
           }
           isConnected = false;
           updateConnectionStatus('disconnected', 'Disconnected');
-          statusEl.innerText = 'Disconnected from ESP32';
+          statusEl.innerText = 'Disconnected from server';
           statusEl.className = 'error';
           updateConnectionButton();
           
@@ -585,27 +563,40 @@
         connectionStatus.textContent = text;
       }
       
-      function handleESP32Message(message) {
+      function handleServerMessage(message) {
         try {
           const data = JSON.parse(message);
           
           switch(data.type) {
-            case 'position_update':
-              statusEl.innerText = `Bot moved to position ${data.row},${data.col}`;
-              statusEl.className = 'success';
-              clearMovingAnimation();
-              
-              addItemToCell(data.row, data.col);
+            case 'esp32_status':
+              if (data.connected) {
+                statusEl.innerText = 'ESP32 connected and ready';
+                statusEl.className = 'success';
+              } else {
+                statusEl.innerText = 'ESP32 disconnected';
+                statusEl.className = 'error';
+              }
               break;
               
-            case 'movement_start':
-              statusEl.innerText = `Bot starting movement to ${data.row},${data.col}`;
-              statusEl.className = 'success';
-              showMovingAnimation(data.row, data.col);
+            case 'movement_result':
+              clearMovingAnimation();
+              if (data.result) {
+                statusEl.innerText = `Movement completed successfully`;
+                statusEl.className = 'success';
+                const activeCell = document.querySelector('.cell.active');
+                if (activeCell) {
+                  const row = activeCell.dataset.row;
+                  const col = activeCell.dataset.col;
+                  addItemToCell(row, col);
+                }
+              } else {
+                statusEl.innerText = `Movement failed`;
+                statusEl.className = 'error';
+              }
               break;
               
             case 'error':
-              statusEl.innerText = `ESP32 Error: ${data.message}`;
+              statusEl.innerText = `Error: ${data.message}`;
               statusEl.className = 'error';
               clearMovingAnimation();
               break;
@@ -614,7 +605,7 @@
               console.log('Unknown message type:', data.type);
           }
         } catch (error) {
-          console.error('Error parsing ESP32 message:', error);
+          console.error('Error parsing server message:', error);
         }
       }
       
@@ -637,24 +628,24 @@
         const key = `${row}-${col}`;
         const hasItem = cellStates[key] === 1;
         
-        console.log(`🎨 Updating cell [${row},${col}]: hasItem=${hasItem}`);
+                  console.log(`Updating cell [${row},${col}]: hasItem=${hasItem}`);
         
         if (cell) {
           cell.classList.remove('has-item', 'empty', 'disabled');
           
           if (hasItem) {
             cell.classList.add('has-item');
-            console.log(`✅ Cell [${row},${col}] now has rainbow animation`);
+            console.log(`Cell [${row},${col}] now has rainbow animation`);
           } else {
             cell.classList.add('empty');
-            console.log(`⚪ Cell [${row},${col}] is now empty (grey)`);
+            console.log(`Cell [${row},${col}] is now empty (grey)`);
           }
           
           if (cellsDisabled) {
             cell.classList.add('disabled');
           }
         } else {
-          console.error(`❌ Cell [${row},${col}] not found in DOM`);
+                      console.error(`Cell [${row},${col}] not found in DOM`);
         }
       }
       
@@ -685,25 +676,25 @@
       
       function addItemToCell(row, col) {
         const key = `${row}-${col}`;
-        console.log(`➕ Adding item to cell [${row},${col}] after ESP32 reached it`);
+        console.log(`Adding item to cell [${row},${col}] after ESP32 reached it`);
         cellStates[key] = 1;
         updateCellAppearance(row, col);
       }
       
       function handleCellClick(row, col) {
         if (cellsDisabled) {
-          console.log(`🚫 Cell [${row},${col}] is disabled, ignoring click`);
+          console.log(`Cell [${row},${col}] is disabled, ignoring click`);
           return;
         }
         
         const key = `${row}-${col}`;
-        console.log(`🖱️ Cell [${row},${col}] clicked, has item: ${cellStates[key] === 1}`);
+                  console.log(`Cell [${row},${col}] clicked, has item: ${cellStates[key] === 1}`);
         
         if (cellStates[key] === 1) {
-          console.log(`❓ Cell [${row},${col}] has item, showing confirmation dialog`);
+          console.log(`Cell [${row},${col}] has item, showing confirmation dialog`);
           showDialog(row, col);
         } else {
-          console.log(`📡 Sending position [${row},${col}] to ESP32`);
+          console.log(`Sending position [${row},${col}] to ESP32`);
           
           document.querySelectorAll('.cell.active').forEach(c => c.classList.remove('active'));
           
@@ -720,37 +711,12 @@
       
       function sendPositionToESP32(row, col) {
         if (!isConnected) {
-          statusEl.innerText = 'Not connected to ESP32!';
+          statusEl.innerText = 'Not connected to server!';
           statusEl.className = 'error';
           return false;
         }
         
-        if (TEST_MODE) {
-          console.log(`🧪 TEST MODE: Simulating movement to position ${row},${col}`);
-          
-          setTimeout(() => {
-            handleESP32Message(JSON.stringify({
-              type: 'movement_start',
-              row: row,
-              col: col
-            }));
-          }, 500);
-          
-          setTimeout(() => {
-            handleESP32Message(JSON.stringify({
-              type: 'position_update',
-              row: row,
-              col: col
-            }));
-          }, 3000);
-          
-          statusEl.innerText = `Sending position ${row},${col} to ESP32... (Test Mode)`;
-          statusEl.className = 'success';
-          return true;
-        }
-        
         const message = {
-          type: 'move_to_position',
           row: parseInt(row),
           col: parseInt(col)
         };
@@ -758,6 +724,7 @@
         websocket.send(JSON.stringify(message));
         statusEl.innerText = `Sending position ${row},${col} to ESP32...`;
         statusEl.className = 'success';
+        showMovingAnimation(row, col);
         return true;
       }
     
@@ -837,7 +804,7 @@
       });
 
       window.addEventListener('load', function() {
-        console.log('🚀 Page loaded, ready for connection...');
+                  console.log('Page loaded, ready for connection...');
         
         updateConnectionButton();
       });
