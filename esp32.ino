@@ -16,6 +16,7 @@
 #define DIR_PIN  19
 const int stepsPerMM = 1600;       // for 1/16 microstepping, 2mm pitch
 const int rackHeightMM = 75;
+volatile unsigned long lastInterruptTime = 0;
 
 // IR sensors
 #define leftIR  34
@@ -25,6 +26,7 @@ const int rackHeightMM = 75;
 volatile int colCounter = 0; //Counter to count the columns 
 volatile int rowCounter = 0 ; //Counter to count the rows 
 volatile bool colDetected = false;
+volatile bool spotDetected = false;
 
 volatile int prevRow = 0;
 volatile int prevCol = 0;
@@ -63,12 +65,12 @@ void setup() {
   pinMode(STEP_PIN, OUTPUT); pinMode(DIR_PIN, OUTPUT);
 
     // IR sensors
-  pinMode(IR_LEFT, INPUT);
-  pinMode(IR_RIGHT, INPUT);
+  pinMode(leftIR, INPUT);
+  pinMode(rightIR, INPUT);
   pinMode(IR_Side, INPUT);
 
   // Attach interrupt: FALLING = High to Low = detecting black
-  attachInterrupt(digitalPinToInterrupt(sideIR), sideIR_isr, FALLING);
+  attachInterrupt(digitalPinToInterrupt(IR_Side), sideIR_isr, FALLING);
 
 }
 
@@ -221,13 +223,11 @@ bool reachRowCol(int row, int col) {
 
     //********************* CHOD BHANGRA ******************************//
     Serial.println("Reached desired rack position !!!");
-    Serial.println("Enter next rack positoin from the dashboard"):
+    Serial.println("Enter next rack positoin from the dashboard");
+    return true;
 
   }
-
-  delay(100);
-  
-  return result;
+  return false;
 } 
 
 
@@ -291,10 +291,11 @@ void stepMotor(int steps, bool dir) {
 }
 
 void IRAM_ATTR sideIR_isr() {
-  // Set flag to indicate a black spot was detected
-  if (!spotDetected) {  // Edge detection to avoid multiple triggers
+  unsigned long currentTime = millis();
+  if ((currentTime - lastInterruptTime) > 200 && !spotDetected) {
     colCounter++;
     spotDetected = true;
+    lastInterruptTime = currentTime;
   }
 }
 
@@ -306,6 +307,7 @@ void move_forward() {
   if (leftValue == LOW && rightValue == LOW) {
     // On track
     forward();
+    spotDetected = false;
   }
   else if (leftValue == LOW && rightValue == HIGH) {
     // Drifted right, turn left
@@ -327,6 +329,7 @@ void move_backward() {
 
   if (leftValue == LOW && rightValue == LOW) {
     backward();
+    spotDetected = false;
   }
   else if (leftValue == LOW && rightValue == HIGH) {
     turn_left_backward();
