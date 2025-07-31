@@ -462,12 +462,13 @@
    
 
     <script>
-      const RELAY_SERVER_IP = 'your_laptop_ip'; // Change to your laptop's IP
+      const RELAY_SERVER_IP = '192.168.137.163'; // Your laptop's IP address
       const RELAY_SERVER_PORT = 8080;
       const wsUrl = `ws://${RELAY_SERVER_IP}:${RELAY_SERVER_PORT}`;
       
       let websocket = null;
       let isConnected = false;
+      let isIntentionalDisconnect = false;
 
       
       const rack = document.getElementById('rack');
@@ -484,6 +485,7 @@
       let pendingRemoveCell = null;
       
       let cellsDisabled = false;
+      let waitingForResponse = false;
       
             function initWebSocket() {
         loadingOverlay.classList.remove('hidden');
@@ -517,7 +519,10 @@
           statusEl.className = 'error';
           updateConnectionButton();
           
-          loadingOverlay.classList.remove('hidden');
+          if (!isIntentionalDisconnect) {
+            loadingOverlay.classList.remove('hidden');
+          }
+          isIntentionalDisconnect = false;
         };
         
         websocket.onerror = function(error) {
@@ -543,6 +548,7 @@
       
       function toggleConnection() {
         if (isConnected) {
+          isIntentionalDisconnect = true;
           if (websocket) {
             websocket.close();
           }
@@ -552,8 +558,15 @@
           statusEl.className = 'error';
           updateConnectionButton();
           
+          document.querySelectorAll('.cell.active').forEach(c => c.classList.remove('active'));
+          clearMovingAnimation();
+          
+          waitingForResponse = false;
+          updateAllCellsAppearance();
+          
           loadingOverlay.classList.add('hidden');
         } else {
+          isIntentionalDisconnect = false;
           initWebSocket();
         }
       }
@@ -580,6 +593,9 @@
               
             case 'movement_result':
               clearMovingAnimation();
+              waitingForResponse = false;
+              updateAllCellsAppearance();
+              
               if (data.result) {
                 statusEl.innerText = `Movement completed successfully`;
                 statusEl.className = 'success';
@@ -599,6 +615,8 @@
               statusEl.innerText = `Error: ${data.message}`;
               statusEl.className = 'error';
               clearMovingAnimation();
+              waitingForResponse = false;
+              updateAllCellsAppearance();
               break;
               
             default:
@@ -641,11 +659,19 @@
             console.log(`Cell [${row},${col}] is now empty (grey)`);
           }
           
-          if (cellsDisabled) {
+          if (cellsDisabled || waitingForResponse) {
             cell.classList.add('disabled');
           }
         } else {
                       console.error(`Cell [${row},${col}] not found in DOM`);
+        }
+      }
+      
+      function updateAllCellsAppearance() {
+        for (let r = 1; r <= 4; r++) {
+          for (let c = 1; c <= 4; c++) {
+            updateCellAppearance(r, c);
+          }
         }
       }
       
@@ -682,7 +708,7 @@
       }
       
       function handleCellClick(row, col) {
-        if (cellsDisabled) {
+        if (cellsDisabled || waitingForResponse) {
           console.log(`Cell [${row},${col}] is disabled, ignoring click`);
           return;
         }
@@ -725,6 +751,10 @@
         statusEl.innerText = `Sending position ${row},${col} to ESP32...`;
         statusEl.className = 'success';
         showMovingAnimation(row, col);
+        
+        waitingForResponse = true;
+        updateAllCellsAppearance();
+        
         return true;
       }
     
