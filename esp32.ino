@@ -2,234 +2,157 @@
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
 
-//All of the following macros are temporary for now 
-// Motor A - BTS7960
 #define RPWM_L 25
 #define LPWM_L 26
-
-// Motor B - BTS7960
 #define RPWM_R 12
 #define LPWM_R 13
-
-// Stepper - TB6600
 #define STEP_PIN 18
-#define DIR_PIN  19
-const int stepsPerMM = 1600;       // for 1/16 microstepping, 2mm pitch
+#define DIR_PIN 19
+#define leftIR 34
+#define rightIR 35
+#define IR_Side 14
+
+const int stepsPerMM = 1600;
 const int rackHeightMM = 75;
 volatile unsigned long lastInterruptTime = 0;
-
-// IR sensors
-#define leftIR  34
-#define rightIR 35
-#define IR_Side  14 //Connect only to that pin in ESP 32 which support interrupts 
-
-volatile int colCounter = 0; //Counter to count the columns 
-volatile int rowCounter = 0 ; //Counter to count the rows 
+volatile int colCounter = 0;
+volatile int rowCounter = 0;
 volatile bool colDetected = false;
 volatile bool spotDetected = false;
-
 volatile int prevRow = 0;
 volatile int prevCol = 0;
 
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
-
-const char* websocket_server = "your_laptop_ip";  // Change to your laptop's IP
-const int websocket_port = 8080;                 // Change to your server port
-const char* websocket_path = "/";                // WebSocket path
+const char* ssid = "Local";
+const char* password = "12233344440";
+const char* relayServerIP = "192.168.137.163"; //your laptop ip
+const int relayServerPort = 8080;
 
 WebSocketsClient webSocket;
 
-bool wifi_connected = false;
-bool websocket_connected = false;
-
-void setup() {
-  Serial.begin(115200);
-  delay(1000);
-  
-  Serial.println("\n=== ESP32 WebSocket Client ===");
-  Serial.println("Initializing...");
-  Serial.println("WiFi not connected. Attempting to connect...");
-  connectToWiFi();
-  
-  if (wifi_connected) {
-    connectToWebSocket();
-  }
-
-  //******* PIN CONFIGURATIONS *************
-  // Setup BTS7960
-  pinMode(RPWM_L, OUTPUT); pinMode(LPWM_L, OUTPUT);
-  pinMode(RPWM_R, OUTPUT); pinMode(LPWM_R, OUTPUT);
-
-  // Setup Stepper
-  pinMode(STEP_PIN, OUTPUT); pinMode(DIR_PIN, OUTPUT);
-
-    // IR sensors
-  pinMode(leftIR, INPUT);
-  pinMode(rightIR, INPUT);
-  pinMode(IR_Side, INPUT);
-
-  // Attach interrupt: FALLING = High to Low = detecting black
-  attachInterrupt(digitalPinToInterrupt(IR_Side), sideIR_isr, FALLING);
-
-}
-
-void loop() {
-  if (websocket_connected) {
-    webSocket.loop();
-  }
-  
-  if (wifi_connected && !websocket_connected) {
-    Serial.println("Attempting to reconnect to WebSocket...");
-    connectToWebSocket();
-    delay(5000);
-  }
-  
-  if (WiFi.status() != WL_CONNECTED) {
-    wifi_connected = false;
-    websocket_connected = false;
-    Serial.println("WiFi disconnected. Attempting to reconnect...");
-    connectToWiFi();
-  }
-  
-  delay(100);
-}
-
-void connectToWiFi() {
-  Serial.print("Connecting to WiFi: ");
-  Serial.println(ssid);
-  
-  WiFi.begin(ssid, password);
-  
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
-    delay(500);
-    Serial.print(".");
-    attempts++;
-  }
-  
-  if (WiFi.status() == WL_CONNECTED) {
-    wifi_connected = true;
-    Serial.println("WiFi connected!");
-    Serial.print("IP address: ");
-    Serial.println(WiFi.localIP());
-  } else {
-    wifi_connected = false;
-    Serial.println("Failed to connect to WiFi");
-  }
-}
-
-void connectToWebSocket() {
-    Serial.printf("Connecting to WebSocket server: %s:%d%s\n", 
-                  websocket_server, websocket_port, websocket_path);
-    
-    webSocket.begin(websocket_server, websocket_port, websocket_path);
-    webSocket.onEvent(webSocketEvent);
-    webSocket.setReconnectInterval(5000);
-    
-    webSocket.enableHeartbeat(15000, 3000, 2);
-}
+void IRAM_ATTR sideIR_isr();
+bool reachRowCol(int row, int col);
+bool reachCol(int col);
+bool reachRow(int row);
+void stepMotor(int steps, bool dir);
+void move_forward();
+void move_backward();
+void forward();
+void backward();
+void turn_left();
+void turn_right();
+void turn_left_backward();
+void turn_right_backward();
+void stop();
 
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
   switch(type) {
     case WStype_DISCONNECTED:
-      Serial.println("[WebSocket] Disconnected");
-      websocket_connected = false;
+      Serial.println("Disconnected from relay server!");
       break;
-        
-    case WStype_CONNECTED:
-      Serial.printf("[WebSocket] Connected to: %s\n", payload);
-      websocket_connected = true;
       
-      webSocket.sendTXT("{\"type\":\"esp32_connected\",\"message\":\"ESP32 WebSocket client connected\"}");
+    case WStype_CONNECTED:
+      Serial.println("Connected to relay server!");
+      webSocket.sendTXT("{\"type\":\"esp32_connected\"}");
       break;
+      
+    case WStype_TEXT: {
+      Serial.printf("Received: %s\n", payload);
+      
+      DynamicJsonDocument doc(1024);
+      DeserializationError error = deserializeJson(doc, payload);
+      
+      if (error) {
+        Serial.print("JSON parsing failed: ");
+        Serial.println(error.c_str());
+        break;
+      }
+      
+      if (doc.containsKey("row") && doc.containsKey("col")) {
+        int row = doc["row"];
+        int col = doc["col"];
         
-    case WStype_TEXT:
-      Serial.printf("[WebSocket] Received: %s\n", payload);
-      handleIncomingMessage((char*)payload);
+        Serial.println("=== COORDINATES RECEIVED ===");
+        Serial.printf("Row: %d\n", row);
+        Serial.printf("Column: %d\n", col);
+        Serial.printf("Position: [%d, %d]\n", row, col);
+        Serial.println("===========================");
+        
+        //bool result = reachRowCol(row, col); UNCOMMENT THIS when you have the motor working
+        bool result = (row + col) % 2 == 0;
+        String response = "{\"result\":" + String(result ? "true" : "false") + "}";
+        webSocket.sendTXT(response);
+      }
       break;
-        
-    case WStype_BIN:
-      Serial.printf("[WebSocket] Received binary data, length: %u\n", length);
-      break;
-        
+    }
+      
     case WStype_ERROR:
-      Serial.printf("[WebSocket] Error: %s\n", payload);
+      Serial.println("WebSocket error!");
       break;
-        
-    case WStype_FRAGMENT_TEXT_START:
-    case WStype_FRAGMENT_BIN_START:
-    case WStype_FRAGMENT:
-    case WStype_FRAGMENT_FIN:
-      Serial.println("[WebSocket] Fragment received");
-      break;
-        
+      
     case WStype_PING:
-      Serial.println("[WebSocket] Ping received");
+      Serial.println("Received ping");
       break;
-        
+      
     case WStype_PONG:
-      Serial.println("[WebSocket] Pong received");
+      Serial.println("Received pong");
       break;
   }
 }
 
-void handleIncomingMessage(const char* message) {
-  StaticJsonDocument<200> doc;
-  DeserializationError error = deserializeJson(doc, message);
+void setup() {
+  Serial.begin(115200);
   
-  if (error) {
-    Serial.print("JSON parsing failed: ");
-    Serial.println(error.c_str());
-    return;
+  pinMode(RPWM_L, OUTPUT);
+  pinMode(LPWM_L, OUTPUT);
+  pinMode(RPWM_R, OUTPUT);
+  pinMode(LPWM_R, OUTPUT);
+  pinMode(STEP_PIN, OUTPUT);
+  pinMode(DIR_PIN, OUTPUT);
+  pinMode(leftIR, INPUT);
+  pinMode(rightIR, INPUT);
+  pinMode(IR_Side, INPUT);
+  
+  attachInterrupt(digitalPinToInterrupt(IR_Side), sideIR_isr, FALLING);
+  
+  Serial.println("Connecting to WiFi...");
+  WiFi.begin(ssid, password);
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
   }
   
-  if (doc.containsKey("row") && doc.containsKey("col")) {
-    int row = doc["row"];
-    int col = doc["col"];
-    
-    Serial.printf("Received coordinates: row=%d, col=%d\n", row, col);
-    
-    bool result = reach_row_col(row, col);
-    
-    Serial.printf("Placeholder function returned: %s\n", result ? "true" : "false");
-    
-    sendBooleanResponse(result);
-  } else {
-    Serial.println("Message doesn't contain valid coordinate data");
-  }
+  Serial.println();
+  Serial.println("WiFi connected!");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  
+  Serial.println("Connecting to relay server...");
+  webSocket.begin(relayServerIP, relayServerPort, "/");
+  webSocket.onEvent(webSocketEvent);
+  webSocket.setReconnectInterval(5000);
+  
+  Serial.println("ESP32 ready to receive coordinates!");
 }
 
-void sendBooleanResponse(bool result) {
-  StaticJsonDocument<100> response;
-  response["result"] = result;
-  
-  String jsonString;
-  serializeJson(response, jsonString);
-  
-  webSocket.sendTXT(jsonString);
-  
-  Serial.printf("Sent response: %s\n", jsonString.c_str());
+void loop() {
+  webSocket.loop();
 }
 
 bool reachRowCol(int row, int col) {
   Serial.printf("Processing coordinates: row=%d, col=%d\n", row, col);
-  Serial.printf("Reaching column: %d" , col);
+  Serial.printf("Reaching column: %d", col);
 
   bool columnReached = reachCol(col);
   bool rowReached = reachRow(row);
 
-  if(columnReached && rowReached){
-
-    //********************* CHOD BHANGRA ******************************//
+  if (columnReached && rowReached) {
     Serial.println("Reached desired rack position !!!");
-    Serial.println("Enter next rack positoin from the dashboard");
+    Serial.println("Enter next rack position from the dashboard");
     return true;
-
   }
   return false;
-} 
-
+}
 
 /**************************************************************************** 
 |                                                                           |
@@ -238,53 +161,50 @@ bool reachRowCol(int row, int col) {
 *****************************************************************************
 */
 
-bool reachCol(int col){
 
-  int colDiff = col - prevCol; 
-  bool flag =false;
+bool reachCol(int col) {
+  int colDiff = col - prevCol;
+  bool flag = false;
 
-  if(colDiff > 0){
-    while(colCounter != col){
+  if (colDiff > 0) {
+    while (colCounter != col) {
       move_forward();
     }
     stop();
-    colCounter =0;
-    prevCol = col; 
+    colCounter = 0;
+    prevCol = col;
     flag = true;
-  }
-  else{
-    while(colCounter != col){
+  } else {
+    while (colCounter != col) {
       move_backward();
     }
     stop();
-    colCounter= 0;
-    prevCol = col; 
-    flag =true;
+    colCounter = 0;
+    prevCol = col;
+    flag = true;
   }
   Serial.printf("Reached entered column value");
-  return flag ;
-
+  return flag;
 }
 
-bool reachRow(int row){
+bool reachRow(int row) {
   int rowDiff = row - prevRow;
-  bool flag = false; 
+  bool flag = false;
   int distanceMM = rowDiff * rackHeightMM;
   int totalSteps = abs(distanceMM) * stepsPerMM;
 
-  bool direction = (rowDiff > 0); // true = up, false = down
+  bool direction = (rowDiff > 0);
   stepMotor(totalSteps, direction);
   flag = true;
   prevRow = row;
-  return flag ;
-  
+  return flag;
 }
 
 void stepMotor(int steps, bool dir) {
   digitalWrite(DIR_PIN, dir);
   for (int i = 0; i < steps; i++) {
     digitalWrite(STEP_PIN, HIGH);
-    delayMicroseconds(500); // Control speed
+    delayMicroseconds(500);
     digitalWrite(STEP_PIN, LOW);
     delayMicroseconds(500);
   }
@@ -299,30 +219,22 @@ void IRAM_ATTR sideIR_isr() {
   }
 }
 
-// Move forward with line following
 void move_forward() {
   int leftValue = digitalRead(leftIR);
   int rightValue = digitalRead(rightIR);
 
   if (leftValue == LOW && rightValue == LOW) {
-    // On track
     forward();
     spotDetected = false;
-  }
-  else if (leftValue == LOW && rightValue == HIGH) {
-    // Drifted right, turn left
+  } else if (leftValue == LOW && rightValue == HIGH) {
     turn_left();
-  }
-  else if (leftValue == HIGH && rightValue == LOW) {
-    // Drifted left, turn right
+  } else if (leftValue == HIGH && rightValue == LOW) {
     turn_right();
-  }
-  else {
+  } else {
     stop();
   }
 }
 
-// Move backward with line following
 void move_backward() {
   int leftValue = digitalRead(leftIR);
   int rightValue = digitalRead(rightIR);
@@ -330,19 +242,15 @@ void move_backward() {
   if (leftValue == LOW && rightValue == LOW) {
     backward();
     spotDetected = false;
-  }
-  else if (leftValue == LOW && rightValue == HIGH) {
+  } else if (leftValue == LOW && rightValue == HIGH) {
     turn_left_backward();
-  }
-  else if (leftValue == HIGH && rightValue == LOW) {
+  } else if (leftValue == HIGH && rightValue == LOW) {
     turn_right_backward();
-  }
-  else {
+  } else {
     stop();
   }
 }
 
-// Motor control functions
 void forward() {
   analogWrite(RPWM_L, 255);
   analogWrite(LPWM_L, 0);
