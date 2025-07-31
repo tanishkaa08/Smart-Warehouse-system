@@ -2,6 +2,9 @@ import asyncio
 import websockets
 import json
 import logging
+import socket
+import threading
+import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -14,14 +17,24 @@ class WebSocketRelay:
     async def handle_client(self, websocket, path=None):
         try:
             logger.info(f"New client connected from {websocket.remote_address}")
+            try:
+                logger.info(f"Client headers: {websocket.request.headers}")
+                logger.info(f"Client path: {path}")
+            except AttributeError:
+                logger.info(f"Client path: {path} (headers not available)")
+                
+            await asyncio.sleep(0.1)
+            client_type = None
             
             async for message in websocket:
                 try:
                     data = json.loads(message)
+                    logger.info(f"Received message: {data}")
                     
                     if data.get("type") == "esp32_connected":
                         logger.info("ESP32 client connected")
                         self.esp32_client = websocket
+                        client_type = "esp32"
                         
                         if self.html_client:
                             await self.send_to_html({
@@ -29,34 +42,41 @@ class WebSocketRelay:
                                 "connected": True,
                                 "message": "ESP32 connected"
                             })
-                        
-                        await self.handle_esp32_messages(websocket)
-                        
+                            
                     elif "row" in data and "col" in data:
                         logger.info(f"HTML client sent coordinates: {data}")
-                        self.html_client = websocket
+                        if client_type is None:
+                            self.html_client = websocket
+                            client_type = "html"
                         
                         if self.esp32_client:
                             await self.send_to_esp32(data)
-                            
-                            await self.handle_html_messages(websocket)
                         else:
                             await self.send_to_html({
                                 "type": "error",
                                 "message": "ESP32 not connected"
                             })
+                    
+                    elif "result" in data and client_type == "esp32":
+                        logger.info(f"Received result from ESP32: {data}")
+                        if self.html_client:
+                            await self.send_to_html({
+                                "type": "movement_result",
+                                "result": data["result"],
+                                "message": "Movement completed successfully" if data["result"] else "Movement failed"
+                            })
                             
                     else:
-                        logger.info("HTML client connected")
-                        self.html_client = websocket
-                        
-                        await self.send_to_html({
-                            "type": "esp32_status",
-                            "connected": self.esp32_client is not None,
-                            "message": "ESP32 connected" if self.esp32_client else "ESP32 not connected"
-                        })
-                        
-                        await self.handle_html_messages(websocket)
+                        if client_type is None:
+                            logger.info("HTML client connected")
+                            self.html_client = websocket
+                            client_type = "html"
+                            
+                            await self.send_to_html({
+                                "type": "esp32_status",
+                                "connected": self.esp32_client is not None,
+                                "message": "ESP32 connected" if self.esp32_client else "ESP32 not connected"
+                            })
                         
                 except json.JSONDecodeError:
                     logger.error(f"Invalid JSON received: {message}")
@@ -153,9 +173,31 @@ async def main():
     logger.info("- Port 8080: For both ESP32 and HTML clients")
     
     async def handler(websocket, path=None):
-        await relay.handle_client(websocket, path)
-    
-    server = await websockets.serve(handler, "0.0.0.0", 8080)
+        try:
+            logger.info(f"WebSocket connection attempt from {websocket.remote_address} on path: {path}")
+            await relay.handle_client(websocket, path)
+        except websockets.exceptions.InvalidHandshake as e:
+            logger.error(f"Invalid WebSocket handshake: {e}")
+        except websockets.exceptions.ConnectionClosedError as e:
+            logger.info(f"Connection closed during handshake: {e}")
+        except Exception as e:
+            logger.error(f"Error in handler: {e}")
+            import traceback
+            traceback.print_exc()
+            
+    server = await websockets.serve(
+        handler, 
+        "0.0.0.0", 
+        8080,
+        ping_interval=None,
+        ping_timeout=None,
+        max_size=None,
+        max_queue=None,
+        close_timeout=10,
+        subprotocols=None,
+        open_timeout=10,
+        compression=None
+    )
     logger.info("WebSocket relay server started on port 8080")
     
     await server.wait_closed()
