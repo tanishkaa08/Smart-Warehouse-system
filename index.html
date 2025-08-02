@@ -462,7 +462,7 @@
    
 
     <script>
-      const RELAY_SERVER_IP = '192.168.137.163'; // Your laptop's IP address
+      const RELAY_SERVER_IP = '192.168.154.243'; // Your laptop's IP address
       const RELAY_SERVER_PORT = 8080;
       const wsUrl = `ws://${RELAY_SERVER_IP}:${RELAY_SERVER_PORT}`;
       
@@ -646,24 +646,26 @@
         const key = `${row}-${col}`;
         const hasItem = cellStates[key] === 1;
         
-                  console.log(`Updating cell [${row},${col}]: hasItem=${hasItem}`);
+        const displayRow = 5 - row;
+        const displayCol = col;
+        console.log(`Updating cell [${displayRow},${displayCol}]: hasItem=${hasItem}`);
         
         if (cell) {
           cell.classList.remove('has-item', 'empty', 'disabled');
           
           if (hasItem) {
             cell.classList.add('has-item');
-            console.log(`Cell [${row},${col}] now has rainbow animation`);
+            console.log(`Cell [${displayRow},${displayCol}] now has rainbow animation`);
           } else {
             cell.classList.add('empty');
-            console.log(`Cell [${row},${col}] is now empty (grey)`);
+            console.log(`Cell [${displayRow},${displayCol}] is now empty (grey)`);
           }
           
           if (cellsDisabled || waitingForResponse) {
             cell.classList.add('disabled');
           }
         } else {
-                      console.error(`Cell [${row},${col}] not found in DOM`);
+          console.error(`Cell [${displayRow},${displayCol}] not found in DOM`);
         }
       }
       
@@ -677,7 +679,9 @@
       
       function showDialog(row, col) {
         pendingRemoveCell = { row, col };
-        dialogMessage.textContent = `Cell [${row},${col}] already has an item. Do you want to remove it?`;
+        const displayRow = 5 - row;
+        const displayCol = col;
+        dialogMessage.textContent = `Cell [${displayRow},${displayCol}] already has an item. Do you want to remove it?`;
         dialogOverlay.classList.add('show');
       }
       
@@ -693,7 +697,9 @@
           
           cellStates[key] = 0;
           updateCellAppearance(row, col);
-          statusEl.innerText = `Item removed from cell ${row},${col}`;
+          const displayRow = 5 - row;
+          const displayCol = col;
+          statusEl.innerText = `Item removed from cell ${displayRow},${displayCol}`;
           statusEl.className = 'success';
           
           hideDialog();
@@ -702,25 +708,31 @@
       
       function addItemToCell(row, col) {
         const key = `${row}-${col}`;
-        console.log(`Adding item to cell [${row},${col}] after ESP32 reached it`);
+        const displayRow = 5 - row;
+        const displayCol = col;
+        console.log(`Adding item to cell [${displayRow},${displayCol}] after ESP32 reached it`);
         cellStates[key] = 1;
         updateCellAppearance(row, col);
       }
       
       function handleCellClick(row, col) {
         if (cellsDisabled || waitingForResponse) {
-          console.log(`Cell [${row},${col}] is disabled, ignoring click`);
+          const displayRow = 5 - row;
+          const displayCol = col;
+          console.log(`Cell [${displayRow},${displayCol}] is disabled, ignoring click`);
           return;
         }
         
         const key = `${row}-${col}`;
-                  console.log(`Cell [${row},${col}] clicked, has item: ${cellStates[key] === 1}`);
+        const displayRow = 5 - row;
+        const displayCol = col;
+        console.log(`Cell [${displayRow},${displayCol}] clicked, has item: ${cellStates[key] === 1}`);
         
         if (cellStates[key] === 1) {
-          console.log(`Cell [${row},${col}] has item, showing confirmation dialog`);
+          console.log(`Cell [${displayRow},${displayCol}] has item, showing confirmation dialog`);
           showDialog(row, col);
         } else {
-          console.log(`Sending position [${row},${col}] to ESP32`);
+          console.log(`Sending position [${displayRow},${displayCol}] to ESP32`);
           
           document.querySelectorAll('.cell.active').forEach(c => c.classList.remove('active'));
           
@@ -742,9 +754,12 @@
           return false;
         }
         
+        const internalRow = 5 - row;
+        const internalCol = col;
+        
         const message = {
-          row: parseInt(row),
-          col: parseInt(col)
+          row: parseInt(internalRow),
+          col: parseInt(internalCol)
         };
         
         websocket.send(JSON.stringify(message));
@@ -770,7 +785,9 @@
           cellStates[key] = 0;
     
           const label = document.createElement('div');
-          label.textContent = `${r},${c}`;
+          const displayRow = 5 - r;
+          const displayCol = c;
+          label.textContent = `${displayRow},${displayCol}`;
     
           cell.appendChild(label);
     

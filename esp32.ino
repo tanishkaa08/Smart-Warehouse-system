@@ -22,9 +22,9 @@ volatile bool spotDetected = false;
 volatile int prevRow = 0;
 volatile int prevCol = 0;
 
-const char* ssid = "Local";
-const char* password = "12233344440";
-const char* relayServerIP = "192.168.137.163"; //your laptop ip
+const char* ssid = "Redmi Note 11";
+const char* password = "ayush12566";
+const char* relayServerIP = "192.168.154.243"; //your laptop ip
 const int relayServerPort = 8080;
 
 WebSocketsClient webSocket;
@@ -166,18 +166,8 @@ bool reachCol(int col) {
   int colDiff = col - prevCol;
   bool flag = false;
 
-  if (colDiff > 0) {
-    while (colCounter != col) {
-      move_forward();
-    }
-    stop();
-    colCounter = 0;
-    prevCol = col;
-    flag = true;
-  } else {
-    while (colCounter != col) {
-      move_backward();
-    }
+  while(colCounter != abs(colDiff)){
+    if(colDiff>0) move_forward(); else move_backward();
     stop();
     colCounter = 0;
     prevCol = col;
@@ -214,6 +204,7 @@ void IRAM_ATTR sideIR_isr() {
   unsigned long currentTime = millis();
   if ((currentTime - lastInterruptTime) > 200 && !spotDetected) {
     colCounter++;
+    Serial.println("colCounter Value: ",colCounter);
     spotDetected = true;
     lastInterruptTime = currentTime;
   }
