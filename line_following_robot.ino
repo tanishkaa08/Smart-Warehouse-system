@@ -9,34 +9,30 @@
 
 int leftValue = 0;
 int rightValue = 0;
-const int pwmFreq = 1000;     // 1 kHz PWM frequency
-const int pwmChannel = 0;     // Choose channel 0–15
+const int pwmFreq = 1000;    
+const int pwmChannel = 0;    
 const int pwmResolution = 8; 
 
 void setup() {
   Serial.begin(115150);
-  ledcSetup(pwmChannel, pwmFreq, pwmResolution);  // Configure
+  ledcSetup(pwmChannel, pwmFreq, pwmResolution); 
 
-  // Initialize motor pins
   pinMode(RPWM_L, OUTPUT);
   pinMode(LPWM_L, OUTPUT);
   pinMode(RPWM_R, OUTPUT);
   pinMode(LPWM_R, OUTPUT);
   
-  // Initialize IR sensor pins
   pinMode(leftIR, INPUT);
   pinMode(rightIR, INPUT);
   
   Serial.println("Line Following Robot Initialized!");
   Serial.println("Place robot on the line and it will start following...");
-  delay(1500); // Give time to position robot
+  delay(1500); 
 }
 
 void loop() {
-  // Execute line following logic using the same implementation as esp32.ino
   move_backward();
   
-  // Small delay for stability
   delay(DELAY_TIME);
 }
 
@@ -131,7 +127,6 @@ void stop() {
   analogWrite(LPWM_R, 0);
 }
 
-// Function to print sensor values for debugging
 void printSensorValues() {
   Serial.print("Left IR: ");
   Serial.print(leftValue);
