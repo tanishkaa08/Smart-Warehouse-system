@@ -12,15 +12,17 @@
 #define rightIR 35
 #define IR_Side 14
 
-const int stepsPerMM = 1600;
+const int stepsPerMM = 100;
 const int rackHeightMM = 75;
 volatile unsigned long lastInterruptTime = 0;
 volatile int colCounter = 0;
 volatile int rowCounter = 0;
 volatile bool colDetected = false;
 volatile bool spotDetected = false;
-volatile int prevRow = 0;
+volatile int prevRow = 4;
 volatile int prevCol = 0;
+int leftValue = 0;
+int rightValue = 0;
 
 const char* ssid = "Redmi Note 11";
 const char* password = "ayush12566";
@@ -77,8 +79,8 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
         Serial.printf("Position: [%d, %d]\n", row, col);
         Serial.println("===========================");
         
-        //bool result = reachRowCol(row, col); UNCOMMENT THIS when you have the motor working
-        bool result = (row + col) % 2 == 0;
+        bool result = reachRowCol(row, col);
+        //bool result = (row + col) % 2 == 0;
         String response = "{\"result\":" + String(result ? "true" : "false") + "}";
         webSocket.sendTXT(response);
       }
@@ -101,7 +103,6 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
 void setup() {
   Serial.begin(115200);
-  
   pinMode(RPWM_L, OUTPUT);
   pinMode(LPWM_L, OUTPUT);
   pinMode(RPWM_R, OUTPUT);
@@ -111,7 +112,6 @@ void setup() {
   pinMode(leftIR, INPUT);
   pinMode(rightIR, INPUT);
   pinMode(IR_Side, INPUT);
-  
   attachInterrupt(digitalPinToInterrupt(IR_Side), sideIR_isr, FALLING);
   
   Serial.println("Connecting to WiFi...");
@@ -143,7 +143,8 @@ bool reachRowCol(int row, int col) {
   Serial.printf("Processing coordinates: row=%d, col=%d\n", row, col);
   Serial.printf("Reaching column: %d", col);
 
-  bool columnReached = reachCol(col);
+  //bool columnReached = reachCol(col);
+  bool columnReached=true;
   bool rowReached = reachRow(row);
 
   if (columnReached && rowReached) {
@@ -183,7 +184,7 @@ bool reachRow(int row) {
   int distanceMM = rowDiff * rackHeightMM;
   int totalSteps = abs(distanceMM) * stepsPerMM;
 
-  bool direction = (rowDiff > 0);
+  bool direction = (rowDiff < 0);
   stepMotor(totalSteps, direction);
   flag = true;
   prevRow = row;
@@ -194,9 +195,9 @@ void stepMotor(int steps, bool dir) {
   digitalWrite(DIR_PIN, dir);
   for (int i = 0; i < steps; i++) {
     digitalWrite(STEP_PIN, HIGH);
-    delayMicroseconds(500);
+    delayMicroseconds(100);
     digitalWrite(STEP_PIN, LOW);
-    delayMicroseconds(500);
+    delayMicroseconds(100);
   }
 }
 
@@ -204,7 +205,8 @@ void IRAM_ATTR sideIR_isr() {
   unsigned long currentTime = millis();
   if ((currentTime - lastInterruptTime) > 200 && !spotDetected) {
     colCounter++;
-    Serial.println("colCounter Value: ",colCounter);
+    Serial.println("colCounter Value: ");
+    Serial.println(colCounter);
     spotDetected = true;
     lastInterruptTime = currentTime;
   }
@@ -214,7 +216,7 @@ void move_forward() {
   int leftValue = digitalRead(leftIR);
   int rightValue = digitalRead(rightIR);
 
-  if (leftValue == LOW && rightValue == LOW) {
+  if (leftValue == LOW && rightValue == LOW) { //low = detecting white, high = detecting black
     forward();
     spotDetected = false;
   } else if (leftValue == LOW && rightValue == HIGH) {
@@ -243,45 +245,45 @@ void move_backward() {
 }
 
 void forward() {
-  analogWrite(RPWM_L, 255);
-  analogWrite(LPWM_L, 0);
+  analogWrite(RPWM_L, 0);
+  analogWrite(LPWM_L, 255);
   analogWrite(RPWM_R, 255);
   analogWrite(LPWM_R, 0);
 }
 
 void backward() {
-  analogWrite(RPWM_L, 0);
-  analogWrite(LPWM_L, 255);
+  analogWrite(RPWM_L, 255);
+  analogWrite(LPWM_L, 0);
   analogWrite(RPWM_R, 0);
   analogWrite(LPWM_R, 255);
 }
 
 void turn_left() {
-  analogWrite(RPWM_L, 200);
-  analogWrite(LPWM_L, 0);
-  analogWrite(RPWM_R, 100);
+  analogWrite(RPWM_L, 0);
+  analogWrite(LPWM_L, 50);
+  analogWrite(RPWM_R, 255);
   analogWrite(LPWM_R, 0);
 }
 
 void turn_right() {
-  analogWrite(RPWM_L, 100);
-  analogWrite(LPWM_L, 0);
-  analogWrite(RPWM_R, 200);
+  analogWrite(RPWM_L, 0);
+  analogWrite(LPWM_L, 255);
+  analogWrite(RPWM_R, 50);
   analogWrite(LPWM_R, 0);
 }
 
 void turn_left_backward() {
-  analogWrite(RPWM_L, 0);
-  analogWrite(LPWM_L, 200);
+  analogWrite(RPWM_L, 50);
+  analogWrite(LPWM_L, 0);
   analogWrite(RPWM_R, 0);
-  analogWrite(LPWM_R, 100);
+  analogWrite(LPWM_R, 255);
 }
 
 void turn_right_backward() {
-  analogWrite(RPWM_L, 0);
-  analogWrite(LPWM_L, 100);
+  analogWrite(RPWM_L, 255);
+  analogWrite(LPWM_L, 0);
   analogWrite(RPWM_R, 0);
-  analogWrite(LPWM_R, 200);
+  analogWrite(LPWM_R, 50);
 }
 
 void stop() {
