@@ -465,7 +465,7 @@
    
 
     <script>
-      const RELAY_SERVER_IP = '192.168.154.243'; // Your laptop's IP address
+      const RELAY_SERVER_IP = '192.168.165.171'; // Your laptop's IP address
       const RELAY_SERVER_PORT = 8080;
       const wsUrl = `ws://${RELAY_SERVER_IP}:${RELAY_SERVER_PORT}`;
       
@@ -493,7 +493,6 @@
             function initWebSocket() {
         loadingOverlay.classList.remove('hidden');
         
-                  console.log('Connecting to relay server...');
         updateConnectionStatus('connecting', 'Connecting...');
         
         websocket = new WebSocket(wsUrl);
@@ -507,6 +506,8 @@
           updateConnectionButton();
           
           loadingOverlay.classList.add('hidden');
+          
+          // Start keep-alive ping
         };
         
         websocket.onmessage = function(event) {
@@ -522,8 +523,15 @@
           statusEl.className = 'error';
           updateConnectionButton();
           
+          // Stop keep-alive
+          stopKeepAlive();
+          
           if (!isIntentionalDisconnect) {
             loadingOverlay.classList.remove('hidden');
+            // Auto-reconnect if page is visible
+            if (isPageVisible) {
+              scheduleReconnect();
+            }
           }
           isIntentionalDisconnect = false;
         };
@@ -537,6 +545,36 @@
           
           loadingOverlay.classList.remove('hidden');
         };
+      }
+      
+      function startKeepAlive() {
+        if (keepAliveInterval) {
+          clearInterval(keepAliveInterval);
+        }
+        keepAliveInterval = setInterval(() => {
+          if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 30000); // Send ping every 30 seconds
+      }
+      
+      function stopKeepAlive() {
+        if (keepAliveInterval) {
+          clearInterval(keepAliveInterval);
+          keepAliveInterval = null;
+        }
+      }
+      
+      function scheduleReconnect() {
+        if (reconnectInterval) {
+          clearTimeout(reconnectInterval);
+        }
+        reconnectInterval = setTimeout(() => {
+          if (!isConnected && isPageVisible) {
+            console.log('Attempting to reconnect...');
+            initWebSocket();
+          }
+        }, 2000); // Wait 2 seconds before reconnecting
       }
       
       function updateConnectionButton() {
@@ -560,6 +598,13 @@
           statusEl.innerText = 'Disconnected from server';
           statusEl.className = 'error';
           updateConnectionButton();
+          
+          // Stop keep-alive and reconnect intervals
+          stopKeepAlive();
+          if (reconnectInterval) {
+            clearTimeout(reconnectInterval);
+            reconnectInterval = null;
+          }
           
           document.querySelectorAll('.cell.active').forEach(c => c.classList.remove('active'));
           clearMovingAnimation();
@@ -589,8 +634,8 @@
                 statusEl.innerText = 'ESP32 connected and ready';
                 statusEl.className = 'success';
               } else {
-                statusEl.innerText = 'ESP32 disconnected';
-                statusEl.className = 'error';
+                statusEl.innerText = 'Connected to relay server - waiting for ESP32...';
+                statusEl.className = 'success';
               }
               break;
               
@@ -854,10 +899,51 @@
       });
 
       window.addEventListener('load', function() {
-                  console.log('Page loaded, ready for connection...');
+        console.log('Page loaded, ready for connection...');
         
         updateConnectionButton();
+        
+        // Set up page visibility API
+        setupPageVisibility();
       });
+      
+      function setupPageVisibility() {
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', function() {
+          isPageVisible = !document.hidden;
+          console.log('Page visibility changed:', isPageVisible ? 'visible' : 'hidden');
+          
+          if (isPageVisible && !isConnected) {
+            // Page became visible and we're not connected, try to reconnect
+            console.log('Page became visible, attempting to reconnect...');
+            setTimeout(() => {
+              if (!isConnected) {
+                initWebSocket();
+              }
+            }, 1000);
+          }
+        });
+        
+        // Handle window focus/blur events as backup
+        window.addEventListener('focus', function() {
+          if (!isPageVisible) {
+            isPageVisible = true;
+            console.log('Window focused, page is now visible');
+            if (!isConnected) {
+              setTimeout(() => {
+                if (!isConnected) {
+                  initWebSocket();
+                }
+              }, 1000);
+            }
+          }
+        });
+        
+        window.addEventListener('blur', function() {
+          isPageVisible = false;
+          console.log('Window blurred, page is now hidden');
+        });
+      }
     </script>
     
 </body>

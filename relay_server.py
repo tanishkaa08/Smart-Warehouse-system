@@ -43,6 +43,10 @@ class WebSocketRelay:
                                 "message": "ESP32 connected"
                             })
                             
+                    elif data.get("type") == "ping":
+                        logger.info("Received ping from client")
+                        await websocket.send(json.dumps({"type": "pong"}))
+                            
                     elif "row" in data and "col" in data:
                         logger.info(f"HTML client sent coordinates: {data}")
                         if client_type is None:

@@ -1,6 +1,8 @@
 #include <WiFi.h>
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
+#include <esp32-hal-ledc.h>  // for the new LEDC API in Arduino-ESP32 v3.x
+#include <Arduino.h>
 
 #define RPWM_L 25
 #define LPWM_L 26
@@ -23,10 +25,12 @@ volatile int prevRow = 4;
 volatile int prevCol = 0;
 int leftValue = 0;
 int rightValue = 0;
+const int pwmFreq       = 1000;  // 1 kHz
+const int pwmResolution = 8;     // 8-bit → 0–255
 
-const char* ssid = "Redmi Note 11";
-const char* password = "ayush12566";
-const char* relayServerIP = "192.168.154.243"; //your laptop ip
+const char* ssid = "Local";
+const char* password = "12233344440";
+const char* relayServerIP = "192.168.137.215"; //your laptop ip
 const int relayServerPort = 8080;
 
 WebSocketsClient webSocket;
@@ -103,16 +107,16 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
 void setup() {
   Serial.begin(115200);
-  pinMode(RPWM_L, OUTPUT);
-  pinMode(LPWM_L, OUTPUT);
-  pinMode(RPWM_R, OUTPUT);
-  pinMode(LPWM_R, OUTPUT);
+  ledcAttach(RPWM_L, pwmFreq, pwmResolution);
+  ledcAttach(LPWM_L, pwmFreq, pwmResolution);
+  ledcAttach(RPWM_R, pwmFreq, pwmResolution);
+  ledcAttach(LPWM_R, pwmFreq, pwmResolution);
   pinMode(STEP_PIN, OUTPUT);
   pinMode(DIR_PIN, OUTPUT);
   pinMode(leftIR, INPUT);
   pinMode(rightIR, INPUT);
   pinMode(IR_Side, INPUT);
-  attachInterrupt(digitalPinToInterrupt(IR_Side), sideIR_isr, FALLING);
+  attachInterrupt(digitalPinToInterrupt(IR_Side), sideIR_isr, RISING);
   
   Serial.println("Connecting to WiFi...");
   WiFi.begin(ssid, password);
@@ -143,8 +147,7 @@ bool reachRowCol(int row, int col) {
   Serial.printf("Processing coordinates: row=%d, col=%d\n", row, col);
   Serial.printf("Reaching column: %d", col);
 
-  //bool columnReached = reachCol(col);
-  bool columnReached=true;
+  bool columnReached = reachCol(col);
   bool rowReached = reachRow(row);
 
   if (columnReached && rowReached) {
@@ -211,84 +214,96 @@ void IRAM_ATTR sideIR_isr() {
     lastInterruptTime = currentTime;
   }
 }
-
 void move_forward() {
-  int leftValue = digitalRead(leftIR);
-  int rightValue = digitalRead(rightIR);
+  leftValue  = digitalRead(leftIR);
+  rightValue = digitalRead(rightIR);
+  Serial.printf("Sensors: %d, %d → ", leftValue, rightValue);
 
-  if (leftValue == LOW && rightValue == LOW) { //low = detecting white, high = detecting black
-    forward();
-    spotDetected = false;
-  } else if (leftValue == LOW && rightValue == HIGH) {
-    turn_left();
-  } else if (leftValue == HIGH && rightValue == LOW) {
-    turn_right();
-  } else {
+  if (leftValue==LOW && rightValue==LOW) {
+    Serial.println("stopped");
     stop();
+  }
+  else if (leftValue==HIGH && rightValue==LOW) {
+    Serial.println("turn left");
+    turn_left();
+  }
+  else if (leftValue==LOW && rightValue==HIGH) {
+    Serial.println("turn right");
+    turn_right();
+  }
+  else {
+    Serial.println("forward");
+    forward();
   }
 }
 
 void move_backward() {
-  int leftValue = digitalRead(leftIR);
-  int rightValue = digitalRead(rightIR);
+  leftValue  = digitalRead(leftIR);
+  rightValue = digitalRead(rightIR);
 
-  if (leftValue == LOW && rightValue == LOW) {
-    backward();
-    spotDetected = false;
-  } else if (leftValue == LOW && rightValue == HIGH) {
-    turn_left_backward();
-  } else if (leftValue == HIGH && rightValue == LOW) {
-    turn_right_backward();
-  } else {
+  if (leftValue==LOW && rightValue==LOW) {
+    Serial.println("stopped");
     stop();
+  }
+  else if (leftValue==HIGH && rightValue==LOW) {
+    Serial.println("turn right (back)");
+    turn_right_backward();
+  }
+  else if (leftValue==LOW && rightValue==HIGH) {
+    Serial.println("turn left (back)");
+    turn_left_backward();
+  }
+  else {
+    Serial.println("backward");
+    backward();
   }
 }
 
 void forward() {
-  analogWrite(RPWM_L, 0);
-  analogWrite(LPWM_L, 255);
-  analogWrite(RPWM_R, 255);
-  analogWrite(LPWM_R, 0);
+  ledcWrite(RPWM_L, 0);
+  ledcWrite(LPWM_L, 200);
+  ledcWrite(RPWM_R, 200);
+  ledcWrite(LPWM_R, 0);
 }
 
 void backward() {
-  analogWrite(RPWM_L, 255);
-  analogWrite(LPWM_L, 0);
-  analogWrite(RPWM_R, 0);
-  analogWrite(LPWM_R, 255);
+  ledcWrite(RPWM_L, 200);
+  ledcWrite(LPWM_L, 0);
+  ledcWrite(RPWM_R, 0);
+  ledcWrite(LPWM_R, 200);
 }
 
 void turn_left() {
-  analogWrite(RPWM_L, 0);
-  analogWrite(LPWM_L, 50);
-  analogWrite(RPWM_R, 255);
-  analogWrite(LPWM_R, 0);
+  ledcWrite(RPWM_L, 0);
+  ledcWrite(LPWM_L, 0);
+  ledcWrite(RPWM_R, 200);
+  ledcWrite(LPWM_R, 0);
 }
 
 void turn_right() {
-  analogWrite(RPWM_L, 0);
-  analogWrite(LPWM_L, 255);
-  analogWrite(RPWM_R, 50);
-  analogWrite(LPWM_R, 0);
+  ledcWrite(RPWM_L, 0);
+  ledcWrite(LPWM_L, 200);
+  ledcWrite(RPWM_R, 0);
+  ledcWrite(LPWM_R, 0);
 }
 
 void turn_left_backward() {
-  analogWrite(RPWM_L, 50);
-  analogWrite(LPWM_L, 0);
-  analogWrite(RPWM_R, 0);
-  analogWrite(LPWM_R, 255);
+  ledcWrite(RPWM_L, 0);
+  ledcWrite(LPWM_L, 0);
+  ledcWrite(RPWM_R, 0);
+  ledcWrite(LPWM_R, 200);
 }
 
 void turn_right_backward() {
-  analogWrite(RPWM_L, 255);
-  analogWrite(LPWM_L, 0);
-  analogWrite(RPWM_R, 0);
-  analogWrite(LPWM_R, 50);
+  ledcWrite(RPWM_L, 200);
+  ledcWrite(LPWM_L, 0);
+  ledcWrite(RPWM_R, 0);
+  ledcWrite(LPWM_R, 0);
 }
 
 void stop() {
-  analogWrite(RPWM_L, 0);
-  analogWrite(LPWM_L, 0);
-  analogWrite(RPWM_R, 0);
-  analogWrite(LPWM_R, 0);
+  ledcWrite(RPWM_L, 0);
+  ledcWrite(LPWM_L, 0);
+  ledcWrite(RPWM_R, 0);
+  ledcWrite(LPWM_R, 0);
 }
